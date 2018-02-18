@@ -32,7 +32,7 @@ struct QueryResult {
     strain_reviews: HashMap<String, Vec<ReviewsSummary>>,
 }
 
-#[get("/strain/search?<q>")]
+#[get("/meta-chronic/strain/search?<q>")]
 fn index(q: Query) -> Json<QueryResult> {
     let query = q.q.split_whitespace().collect::<Vec<&str>>();
     let leafly_revs = leafly(&query);
