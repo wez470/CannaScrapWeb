@@ -20,7 +20,6 @@ struct Query {
 
 #[derive(Serialize)]
 struct ReviewsSummary {
-    source: String,
     url: String,
     strain: String,
     rating: f64,
@@ -29,7 +28,7 @@ struct ReviewsSummary {
 
 #[derive(Serialize)]
 struct QueryResult {
-    strain_reviews: HashMap<String, Vec<ReviewsSummary>>,
+    strain_reviews: HashMap<String, HashMap<String, ReviewsSummary>>,
 }
 
 #[get("/meta-chronic/strain/search?<q>")]
@@ -39,21 +38,20 @@ fn index(q: Query) -> Json<QueryResult> {
     let allbud_revs = allbud(&query);
     let mut revs = HashMap::new();
     for rev_summary in allbud_revs {
-        revs.entry(rev_summary.strain.clone()).or_insert(Vec::new()).push(rev_summary);
+        revs.entry(rev_summary.strain.clone()).or_insert(HashMap::new()).insert("Allbud".to_string(), rev_summary);
     }
     for rev_summary in leafly_revs {
-        revs.entry(rev_summary.strain.clone()).or_insert(Vec::new()).push(rev_summary);
+        revs.entry(rev_summary.strain.clone()).or_insert(HashMap::new()).insert("Leafly".to_string(), rev_summary);
     }
     for (strain, rev_sums) in &mut revs {
         if rev_sums.len() > 1 {
             let mut total_rating: f64 = 0.0;
             let mut total_ratings: u32 = 0;
-            for rev_sum in rev_sums.iter() {
+            for (_source, rev_sum) in rev_sums.iter() {
                 total_rating += rev_sum.rating * (rev_sum.ratings as f64);
                 total_ratings += rev_sum.ratings;
             }
-            rev_sums.push(ReviewsSummary {
-                source: "Meta Chronic Average".to_string(),
+            rev_sums.insert("Meta Chronic Average".to_string(), ReviewsSummary {
                 url: String::new(),
                 strain: strain.clone(),
                 rating: total_rating / (total_ratings as f64),
@@ -97,7 +95,6 @@ fn allbud(search_terms: &Vec<&str>) -> Vec<ReviewsSummary> {
         let split_url: Vec<&str> = url.split('/').collect();
         let name = split_url.last().unwrap().replace("-", " ");
         review_summaries.push(ReviewsSummary {
-            source: "Allbud".to_string(),
             url: url.clone(),
             strain: name.clone(),
             rating: rating.inner_html().trim().parse::<f64>().unwrap(),
@@ -139,7 +136,6 @@ fn leafly(search_terms: &Vec<&str>) -> Vec<ReviewsSummary> {
         });
         if contains_terms {
             review_summaries.push(ReviewsSummary {
-                source: "Leafly".to_string(),
                 url: String::new(),
                 strain: review.0.to_string(),
                 rating: (review.1).1.parse::<f64>().unwrap(),
