@@ -112,11 +112,16 @@ fn leafly(search_terms: &Vec<&str>) -> Vec<ReviewsSummary> {
 
     let doc = Document::from_read(search_resp).unwrap();
     let mut names = Vec::new();
+    let mut urls = Vec::new();
     let mut num_reviews = Vec::new();
     let mut ratings = Vec::new();
     doc.find(Name("li").descendant(Class("padding-rowItem")).descendant(Class("copy--bold"))).for_each(|item| {
         let name = item.text().trim().to_lowercase();
         names.push(name);
+    });
+    doc.find(Name("li").descendant(Class("padding-rowItem")).descendant(Name("a"))).for_each(|item| {
+        let url = item.attr("href").unwrap();
+        urls.push(url);
     });
     doc.find(Name("li").descendant(Class("padding-rowItem")).descendant(Class("color--light"))).for_each(|item| {
         let match_chars: &[_] = &['(', ')', ' '];
@@ -129,17 +134,19 @@ fn leafly(search_terms: &Vec<&str>) -> Vec<ReviewsSummary> {
     });
 
     let mut review_summaries = Vec::new();
-    for review in names.iter().zip(num_reviews.iter().zip(ratings.iter())) {
+    for i in 0..names.len() {
         let mut contains_terms = true;
         search_terms.iter().for_each(|term| {
-            contains_terms &= review.0.contains(term);
+            contains_terms &= names[i].contains(term);
         });
         if contains_terms {
+            let mut url_str = String::from("https://www.leafly.com");
+            url_str.push_str(urls[i]);
             review_summaries.push(ReviewsSummary {
-                url: String::new(),
-                strain: review.0.to_string(),
-                rating: (review.1).1.parse::<f64>().unwrap(),
-                ratings: (review.1).0.parse::<u32>().unwrap(),
+                url: url_str,
+                strain: names[i].to_string(),
+                rating: ratings[i].parse::<f64>().unwrap(),
+                ratings: num_reviews[i].parse::<u32>().unwrap(),
             });
         }
     }
